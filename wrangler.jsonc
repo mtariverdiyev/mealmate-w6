@@ -1,7 +1,15 @@
 {
   "name": "mealmate-w6",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-10-19",
   "assets": {
-    "directory": "dist"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "ORDERS",
+      "id": "8714f39f375b4d1897bcf15c603838ab"
+    }
+  ]
 }

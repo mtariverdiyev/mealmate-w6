@@ -1,21 +1,23 @@
-import { formatPrice, meals, type MealId } from './meals'
+import type { Order } from './api'
 import './CartScreen.css'
 
 type CartScreenProps = {
-  canAddItems: boolean
-  quantities: Record<MealId, number>
+  busy: boolean
+  loadError: string
   onBack: () => void
+  onCancelOrder: (orderId: string) => void
   onNavigateToAdmin: () => void
-  onQuantityChange: (mealId: MealId, quantity: number) => void
+  orders: Order[]
   userName: string
 }
 
 function CartScreen({
-  canAddItems,
-  quantities,
+  busy,
+  loadError,
   onBack,
+  onCancelOrder,
   onNavigateToAdmin,
-  onQuantityChange,
+  orders,
   userName,
 }: CartScreenProps) {
   const userInitials = userName
@@ -25,15 +27,6 @@ function CartScreen({
     .slice(0, 2)
     .map((part) => part[0].toUpperCase())
     .join('')
-  const cartItems = meals.filter((meal) => quantities[meal.id] > 0)
-  const mealCount = cartItems.reduce(
-    (count, meal) => count + quantities[meal.id],
-    0,
-  )
-  const orderTotal = cartItems.reduce(
-    (total, meal) => total + meal.price * quantities[meal.id],
-    0,
-  )
 
   return (
     <main className="cart-screen">
@@ -68,67 +61,58 @@ function CartScreen({
         </button>
 
         <p className="cart-eyebrow">Today’s order</p>
-        <h1>Your cart</h1>
+        <h1>Your order</h1>
         <p className="cart-description">
-          Increase quantities or remove meals before 10:30.
+          Orders are saved on the server. Cancel only removes your own order.
         </p>
 
-        <section className="cart-items" aria-label="Items in your cart">
-          {cartItems.length > 0 ? (
-            cartItems.map((meal) => {
-              const quantity = quantities[meal.id]
-              const lineTotal = meal.price * quantity
+        {loadError ? (
+          <p className="cart-empty" role="alert">
+            {loadError}
+          </p>
+        ) : null}
 
-              return (
-                <article className="cart-item" key={meal.id}>
-                  <div className="cart-item-heading">
-                    <div>
-                      <h2>{meal.name}</h2>
-                      <p>{formatPrice(meal.price)} each</p>
-                    </div>
-                    <strong>{formatPrice(lineTotal)}</strong>
+        <section className="cart-items" aria-label="Your orders">
+          {orders.length > 0 ? (
+            orders.map((order) => (
+              <article className="cart-item" key={order.id}>
+                <div className="cart-item-heading">
+                  <div>
+                    <h2>{order.dishName}</h2>
+                    <p>Ordered by {order.staffName}</p>
                   </div>
-                  <div className="cart-item-actions">
-                    <div className="quantity-control" aria-label={`Quantity: ${quantity}`}>
-                      <span className="quantity-value">{quantity}</span>
-                      <button
-                        aria-label={`Add one ${meal.name}`}
-                        className="quantity-increase"
-                        disabled={!canAddItems}
-                        onClick={() => onQuantityChange(meal.id, quantity + 1)}
-                        type="button"
-                      >
-                        +
-                      </button>
-                    </div>
-                    <button
-                      aria-label={`Remove ${meal.name} from cart`}
-                      className="cart-remove"
-                      onClick={() => onQuantityChange(meal.id, 0)}
-                      type="button"
-                    >
-                      <svg viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M3 4h10M6 4V2.5h4V4m2 0-.6 9H4.6L4 4m2.5 2.5v4m3-4v4" />
-                      </svg>
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              )
-            })
+                </div>
+                <div className="cart-item-actions">
+                  <button
+                    aria-label={`Cancel order for ${order.dishName}`}
+                    className="cart-remove"
+                    disabled={busy}
+                    onClick={() => onCancelOrder(order.id)}
+                    type="button"
+                  >
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M3 4h10M6 4V2.5h4V4m2 0-.6 9H4.6L4 4m2.5 2.5v4m3-4v4" />
+                    </svg>
+                    Cancel
+                  </button>
+                </div>
+              </article>
+            ))
           ) : (
-            <p className="cart-empty">Your cart is empty.</p>
+            <p className="cart-empty">You have no orders yet.</p>
           )}
         </section>
 
-        <section className="cart-total" aria-label="Order total">
+        <section className="cart-total" aria-label="Order count">
           <div className="cart-total-caption">
-            <span>{mealCount} {mealCount === 1 ? 'meal' : 'meals'}</span>
+            <span>
+              {orders.length} {orders.length === 1 ? 'order' : 'orders'}
+            </span>
             <span>Today</span>
           </div>
           <div className="cart-total-amount">
-            <span>Order total</span>
-            <strong>{formatPrice(orderTotal)}</strong>
+            <span>Saved on server</span>
+            <strong>{orders.length}</strong>
           </div>
         </section>
       </section>

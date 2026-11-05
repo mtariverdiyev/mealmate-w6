@@ -119,66 +119,96 @@
   font-size: 9px;
 }
 
-.demo-clock-card {
-  min-height: 40px;
-  padding: 6px 9px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
+.admin-error {
+  margin: 0 0 12px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: #fdeceb;
+  color: #8a2f2a;
+  font-size: 8px;
+}
+
+.publish-form {
+  margin-bottom: 10px;
+  padding: 10px 9px;
+  display: grid;
+  gap: 8px;
   border-radius: 9px;
   background: #fff;
 }
 
-.demo-clock-icon {
-  width: 17px;
-  height: 17px;
-  flex: 0 0 17px;
+.publish-form label {
   display: grid;
-  place-items: center;
-  color: #93918a;
-}
-
-.demo-clock-icon svg {
-  width: 13px;
-  height: 13px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.4;
-}
-
-.demo-clock-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.demo-clock-copy strong,
-.demo-clock-copy small {
-  display: block;
-}
-
-.demo-clock-copy strong {
-  color: #252622;
-  font-size: 8px;
-}
-
-.demo-clock-copy small {
-  margin-top: 1px;
-  color: #85827d;
+  gap: 3px;
+  color: #5f5c56;
   font-size: 7px;
 }
 
-.cutoff-time-input {
-  width: 72px;
-  height: 24px;
-  padding: 2px 5px;
+.publish-form input {
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
   border: 1px solid #efeeeb;
   border-radius: 6px;
   background: #f7f6f4;
-  color: #4c4a44;
+  color: #232420;
+  font: inherit;
+  font-size: 9px;
+}
+
+.publish-form button {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 8px;
+  background: #08775e;
+  color: #fff;
   font: inherit;
   font-size: 8px;
+  cursor: pointer;
+}
+
+.publish-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-delete {
+  height: 22px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  background: #f7f6f4;
+  color: #8a2f2a;
+  font: inherit;
+  font-size: 7px;
+  cursor: pointer;
+}
+
+.admin-delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-empty {
+  margin: 0;
+  padding: 12px 9px;
+  color: #85827d;
+  font-size: 8px;
+  background: #fff;
+}
+
+.order-staff {
+  min-width: 72px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: #e8f8f1;
+  color: #08775e;
+  font-size: 7px;
+  font-weight: 700;
 }
 
 .admin-menu-heading,
@@ -189,7 +219,7 @@
 }
 
 .admin-menu-heading {
-  margin: 15px 0 8px;
+  margin: 0 0 8px;
 }
 
 .admin-menu-heading h2,
@@ -328,24 +358,6 @@
   background: #e8f8f1;
   color: #08775e;
   font-weight: 700;
-}
-
-.order-chevron {
-  color: #aaa8a2;
-  font-size: 16px;
-  line-height: 1;
-}
-
-.kitchen-cutoff {
-  margin-top: 12px;
-  padding: 8px 9px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-radius: 7px;
-  background: #fff8e8;
-  color: #816b42;
-  font-size: 7px;
 }
 
 .admin-screen button:focus-visible,

@@ -343,6 +343,68 @@
   line-height: 1;
 }
 
+.staff-error {
+  margin: 0 0 12px;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: #fdeceb;
+  color: #8a2f2a;
+  font-size: 8px;
+}
+
+.staff-empty {
+  margin: 0;
+  padding: 12px 0;
+  color: #85827d;
+  font-size: 8px;
+}
+
+.my-orders-card {
+  margin-top: 14px;
+}
+
+.my-orders-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #fcfbfa;
+}
+
+.my-order-item {
+  min-height: 38px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #f0eeea;
+  color: #232420;
+  font-size: 8px;
+}
+
+.my-order-item:last-child {
+  border-bottom: 0;
+}
+
+.my-order-item button {
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: #f7f6f4;
+  color: #8a2f2a;
+  font: inherit;
+  font-size: 7px;
+  cursor: pointer;
+}
+
+.my-order-item button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .spending-card {
   min-height: 88px;
   margin-top: 16px;

@@ -1,67 +1,135 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  cancelOrder,
+  getMenu,
+  getOrders,
+  placeOrder,
+  saveMenu,
+  type Dish,
+  type Order,
+} from './api'
 import AdminScreen from './AdminScreen'
 import CartScreen from './CartScreen'
 import StaffScreen from './StaffScreen'
 import WelcomeScreen from './WelcomeScreen'
-import type { MealId } from './meals'
 
 type Screen = 'welcome' | 'staff' | 'cart' | 'admin'
 
-const ORDER_CUTOFF = '10:30'
+const STAFF_NAME_KEY = 'mealmate-staff-name'
+const POLL_MS = 4000
+
+function readSavedName(): string {
+  try {
+    return localStorage.getItem(STAFF_NAME_KEY)?.trim() ?? ''
+  } catch {
+    return ''
+  }
+}
 
 function App() {
+  const savedName = readSavedName()
   const [currentScreen, setCurrentScreen] = useState<Screen>(
-    'welcome',
+    savedName ? 'staff' : 'welcome',
   )
-  const [quantities, setQuantities] = useState<Record<MealId, number>>({
-    'herb-chicken': 0,
-    'miso-noodles': 0,
-    'vegetable-focaccia': 0,
-  })
-  const [userName, setUserName] = useState('')
-  const [demoTime, setDemoTime] = useState('10:30')
-  const [isMenuPublished, setIsMenuPublished] = useState(true)
-  const canOrder = isMenuPublished && demoTime !== '' && demoTime < ORDER_CUTOFF
-  const cartCount = Object.values(quantities).reduce(
-    (count, quantity) => count + quantity,
-    0,
-  )
+  const [userName, setUserName] = useState(savedName)
+  const [menu, setMenu] = useState<Dish[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loadError, setLoadError] = useState('')
+  const [busy, setBusy] = useState(false)
 
-  function updateQuantity(mealId: MealId, quantity: number) {
-    setQuantities((current) => {
-      if (quantity > current[mealId] && !canOrder) return current
-      return { ...current, [mealId]: quantity }
-    })
+  const refresh = useCallback(async () => {
+    try {
+      const [nextMenu, nextOrders] = await Promise.all([getMenu(), getOrders()])
+      setMenu(nextMenu)
+      setOrders(nextOrders)
+      setLoadError('')
+    } catch (error) {
+      setLoadError(
+        error instanceof Error ? error.message : 'Could not load data',
+      )
+    }
+  }, [])
+
+  useEffect(() => {
+    void refresh()
+    const timer = window.setInterval(() => {
+      void refresh()
+    }, POLL_MS)
+    return () => window.clearInterval(timer)
+  }, [refresh])
+
+  const myOrders = orders.filter((order) => order.staffName === userName)
+
+  async function handleContinue(name: string) {
+    const trimmed = name.trim()
+    try {
+      localStorage.setItem(STAFF_NAME_KEY, trimmed)
+    } catch {
+      // localStorage may be unavailable; name still works for this session
+    }
+    setUserName(trimmed)
+    setCurrentScreen('staff')
   }
 
-  function addMeal(mealId: MealId) {
-    if (!canOrder) return
+  async function handlePlaceOrder(dishId: string) {
+    if (!userName || busy) return
+    setBusy(true)
+    try {
+      await placeOrder(userName, dishId)
+      await refresh()
+    } catch (error) {
+      setLoadError(
+        error instanceof Error ? error.message : 'Could not place order',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
 
-    setQuantities((current) => ({
-      ...current,
-      [mealId]: current[mealId] + 1,
-    }))
+  async function handleCancelOrder(orderId: string) {
+    if (!userName || busy) return
+    setBusy(true)
+    try {
+      await cancelOrder(orderId, userName)
+      await refresh()
+    } catch (error) {
+      setLoadError(
+        error instanceof Error ? error.message : 'Could not cancel order',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleSaveMenu(nextMenu: Dish[]) {
+    if (busy) return
+    setBusy(true)
+    try {
+      const saved = await saveMenu(nextMenu)
+      setMenu(saved)
+      setLoadError('')
+    } catch (error) {
+      setLoadError(
+        error instanceof Error ? error.message : 'Could not save menu',
+      )
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (currentScreen === 'welcome') {
-    return (
-      <WelcomeScreen
-        onContinue={(name) => {
-          setUserName(name)
-          setCurrentScreen('staff')
-        }}
-      />
-    )
+    return <WelcomeScreen onContinue={handleContinue} />
   }
 
   if (currentScreen === 'cart') {
     return (
       <CartScreen
-        canAddItems={canOrder}
+        busy={busy}
+        loadError={loadError}
         onBack={() => setCurrentScreen('staff')}
+        onCancelOrder={handleCancelOrder}
         onNavigateToAdmin={() => setCurrentScreen('admin')}
-        onQuantityChange={updateQuantity}
-        quantities={quantities}
+        orders={myOrders}
         userName={userName}
       />
     )
@@ -70,27 +138,27 @@ function App() {
   if (currentScreen === 'admin') {
     return (
       <AdminScreen
-        demoTime={demoTime}
-        isMenuPublished={isMenuPublished}
-        onDemoTimeChange={setDemoTime}
+        busy={busy}
+        loadError={loadError}
+        menu={menu}
         onNavigateToStaff={() => setCurrentScreen('staff')}
-        onTogglePublished={() =>
-          setIsMenuPublished((published) => !published)
-        }
+        onSaveMenu={handleSaveMenu}
+        orders={orders}
       />
     )
   }
 
   return (
     <StaffScreen
-      cartCount={cartCount}
-      onAddMeal={addMeal}
-      canOrder={canOrder}
-      isMenuPublished={isMenuPublished}
-      isPastCutoff={demoTime === '' || demoTime >= ORDER_CUTOFF}
+      busy={busy}
+      loadError={loadError}
+      menu={menu}
+      myOrders={myOrders}
+      onCancelOrder={handleCancelOrder}
       onNavigateToAdmin={() => setCurrentScreen('admin')}
       onNavigateToStaff={() => setCurrentScreen('staff')}
       onOpenCart={() => setCurrentScreen('cart')}
+      onPlaceOrder={handlePlaceOrder}
       userName={userName}
     />
   )

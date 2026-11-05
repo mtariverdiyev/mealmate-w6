@@ -63,7 +63,9 @@ function WelcomeScreen({ onContinue }: WelcomeScreenProps) {
 
       <footer className="welcome-footer">
         <span>For your office team only</span>
-        <span className="welcome-owner">TARIVERDIYEV Murad, UID:3036345004</span>
+        <span className="welcome-owner">
+          TARIVERDIYEV Murad, UID:3036345004
+        </span>
       </footer>
     </main>
   )

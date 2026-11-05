@@ -1,17 +1,28 @@
-import { useState } from 'react'
-import { formatPrice, meals, type MealId } from './meals'
+import { useEffect, useState } from 'react'
+import { formatPrice, type Dish, type Order } from './api'
 import './StaffScreen.css'
 
 type StaffScreenProps = {
-  cartCount: number
-  canOrder: boolean
-  isMenuPublished: boolean
-  isPastCutoff: boolean
-  onAddMeal: (mealId: MealId) => void
+  busy: boolean
+  loadError: string
+  menu: Dish[]
+  myOrders: Order[]
+  onCancelOrder: (orderId: string) => void
   onNavigateToAdmin: () => void
   onNavigateToStaff: () => void
   onOpenCart: () => void
+  onPlaceOrder: (dishId: string) => void
   userName: string
+}
+
+function initialsFor(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter((part) => /\p{L}/u.test(part))
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join('')
 }
 
 function CheckIcon() {
@@ -33,19 +44,30 @@ function CartIcon() {
 }
 
 function StaffScreen({
-  cartCount,
-  canOrder,
-  isMenuPublished,
-  isPastCutoff,
-  onAddMeal,
+  busy,
+  loadError,
+  menu,
+  myOrders,
+  onCancelOrder,
   onNavigateToAdmin,
   onNavigateToStaff,
   onOpenCart,
+  onPlaceOrder,
   userName,
 }: StaffScreenProps) {
-  const [selectedMealId, setSelectedMealId] = useState('miso-noodles')
-  const [addedToCart, setAddedToCart] = useState(false)
-  const selectedMeal = meals.find((meal) => meal.id === selectedMealId)
+  const [selectedMealId, setSelectedMealId] = useState('')
+  const selectedMeal = menu.find((meal) => meal.id === selectedMealId)
+  const canOrder = menu.length > 0 && !busy
+
+  useEffect(() => {
+    if (menu.length === 0) {
+      setSelectedMealId('')
+      return
+    }
+    if (!menu.some((meal) => meal.id === selectedMealId)) {
+      setSelectedMealId(menu[0].id)
+    }
+  }, [menu, selectedMealId])
 
   return (
     <main className="staff-screen">
@@ -56,7 +78,7 @@ function StaffScreen({
           </span>
           <span className="brand-name">MealMate</span>
         </div>
-        <span className="profile-initials">MT</span>
+        <span className="profile-initials">{initialsFor(userName) || '—'}</span>
       </header>
 
       <nav className="staff-tabs" aria-label="Staff navigation">
@@ -78,32 +100,28 @@ function StaffScreen({
       </nav>
 
       <section className="staff-content">
-        <p className="staff-date">Thursday, October 8</p>
+        <p className="staff-date">Today’s lunch</p>
         <h1>Good morning, {userName}</h1>
         <p className="staff-subtitle">Choose your lunch for today.</p>
 
-        <div
-          className={`cutoff-notice${canOrder ? '' : ' cutoff-notice-unavailable'}`}
-          role={canOrder ? undefined : 'status'}
-          aria-live={canOrder ? undefined : 'polite'}
-        >
+        {loadError ? (
+          <p className="staff-error" role="alert">
+            {loadError}
+          </p>
+        ) : null}
+
+        <div className="cutoff-notice" role="status">
           <span className="notice-check" aria-hidden="true">
-            {canOrder ? <CheckIcon /> : '!'}
+            <CheckIcon />
           </span>
           <span>
             <strong>
-              {!isMenuPublished
-                ? 'Menu unavailable'
-                : isPastCutoff
-                  ? 'Ordering closed'
-                  : 'Order by 10:30'}
+              {menu.length > 0 ? 'Menu is live' : 'Menu unavailable'}
             </strong>
             <small>
-              {!isMenuPublished
-                ? 'Today’s menu has not been published yet.'
-                : isPastCutoff
-                  ? 'The 10:30 AM ordering cutoff has passed.'
-                  : 'You can change your choice until the cutoff.'}
+              {menu.length > 0
+                ? 'Pick a dish, place an order, or cancel from Your order.'
+                : 'Today’s menu has not been published yet.'}
             </small>
           </span>
         </div>
@@ -111,85 +129,111 @@ function StaffScreen({
         <div className="menu-heading">
           <h2>Today’s menu</h2>
           <button
-            aria-label={`Cart, ${cartCount} items`}
+            aria-label={`Your order, ${myOrders.length} items`}
             className="cart-count"
             onClick={onOpenCart}
             type="button"
           >
             <CartIcon />
-            <span>Cart</span>
-            <span className="cart-badge">{cartCount}</span>
+            <span>Order</span>
+            <span className="cart-badge">{myOrders.length}</span>
           </button>
         </div>
 
-        <div className="meal-list" role="radiogroup" aria-label="Today’s menu">
-          {meals.map((meal) => (
-            <button
-              aria-checked={selectedMealId === meal.id}
-              className={`meal-card${selectedMealId === meal.id ? ' meal-card-selected' : ''}`}
-              disabled={!canOrder}
-              key={meal.name}
-              onClick={() => {
-                setSelectedMealId(meal.id)
-                setAddedToCart(false)
-              }}
-              onKeyDown={(event) => {
-                const isPreviousKey =
-                  event.key === 'ArrowLeft' || event.key === 'ArrowUp'
-                const isNextKey =
-                  event.key === 'ArrowRight' || event.key === 'ArrowDown'
+        {menu.length > 0 ? (
+          <div className="meal-list" role="radiogroup" aria-label="Today’s menu">
+            {menu.map((meal) => (
+              <button
+                aria-checked={selectedMealId === meal.id}
+                className={`meal-card${selectedMealId === meal.id ? ' meal-card-selected' : ''}`}
+                disabled={!canOrder}
+                key={meal.id}
+                onClick={() => setSelectedMealId(meal.id)}
+                onKeyDown={(event) => {
+                  const isPreviousKey =
+                    event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+                  const isNextKey =
+                    event.key === 'ArrowRight' || event.key === 'ArrowDown'
 
-                if (!isPreviousKey && !isNextKey) {
-                  return
-                }
+                  if (!isPreviousKey && !isNextKey) {
+                    return
+                  }
 
-                event.preventDefault()
-                const currentIndex = meals.findIndex((item) => item.id === selectedMealId)
-                const offset = isPreviousKey ? -1 : 1
-                const nextIndex = (currentIndex + offset + meals.length) % meals.length
-                setSelectedMealId(meals[nextIndex].id)
-                setAddedToCart(false)
-                event.currentTarget.parentElement
-                  ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
-                  [nextIndex]?.focus()
-              }}
-              role="radio"
-              tabIndex={selectedMealId === meal.id ? 0 : -1}
-              type="button"
-            >
-              <span
-                className={`meal-selector${selectedMealId === meal.id ? ' meal-selector-selected' : ''}`}
-                aria-hidden="true"
+                  event.preventDefault()
+                  const currentIndex = menu.findIndex(
+                    (item) => item.id === selectedMealId,
+                  )
+                  const offset = isPreviousKey ? -1 : 1
+                  const nextIndex =
+                    (currentIndex + offset + menu.length) % menu.length
+                  setSelectedMealId(menu[nextIndex].id)
+                  event.currentTarget.parentElement
+                    ?.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+                    [nextIndex]?.focus()
+                }}
+                role="radio"
+                tabIndex={selectedMealId === meal.id ? 0 : -1}
+                type="button"
               >
-                {selectedMealId === meal.id && <CheckIcon />}
-              </span>
-              <span className="meal-copy">
-                <strong>{meal.name}</strong>
-                <small>{meal.description}</small>
-              </span>
-              <strong className="meal-price">{formatPrice(meal.price)}</strong>
-            </button>
-          ))}
-        </div>
+                <span
+                  className={`meal-selector${selectedMealId === meal.id ? ' meal-selector-selected' : ''}`}
+                  aria-hidden="true"
+                >
+                  {selectedMealId === meal.id && <CheckIcon />}
+                </span>
+                <span className="meal-copy">
+                  <strong>{meal.name}</strong>
+                  <small>{meal.description || 'Published dish'}</small>
+                </span>
+                <strong className="meal-price">
+                  {formatPrice(meal.price)}
+                </strong>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="staff-empty">No dishes published yet.</p>
+        )}
 
         <button
           className="order-button"
-          disabled={!canOrder || !selectedMeal || addedToCart}
+          disabled={!canOrder || !selectedMeal}
           onClick={() => {
-            if (canOrder && selectedMeal) {
-              onAddMeal(selectedMeal.id)
-              setAddedToCart(true)
-            }
+            if (selectedMeal) onPlaceOrder(selectedMeal.id)
           }}
           type="button"
         >
           <span>
-            {addedToCart
-              ? 'Added to order'
-              : `Add ${selectedMeal?.name ?? 'meal'} to order`}
+            {busy
+              ? 'Saving…'
+              : `Order ${selectedMeal?.name ?? 'meal'}`}
           </span>
           <span aria-hidden="true">→</span>
         </button>
+
+        <section className="my-orders-card" aria-label="Your orders">
+          <div className="menu-heading">
+            <h2>Your order</h2>
+          </div>
+          {myOrders.length > 0 ? (
+            <ul className="my-orders-list">
+              {myOrders.map((order) => (
+                <li className="my-order-item" key={order.id}>
+                  <span>{order.dishName}</span>
+                  <button
+                    disabled={busy}
+                    onClick={() => onCancelOrder(order.id)}
+                    type="button"
+                  >
+                    Cancel
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="staff-empty">No order yet — it will survive a refresh.</p>
+          )}
+        </section>
 
         <section className="spending-card" aria-label="October spending">
           <div className="spending-topline">

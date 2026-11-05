@@ -1,40 +1,70 @@
-import { meals, type MealId } from './meals'
+import { useState, type FormEvent } from 'react'
+import { formatPrice, type Dish, type Order } from './api'
 import './AdminScreen.css'
 
 type AdminScreenProps = {
-  demoTime: string
-  isMenuPublished: boolean
-  onDemoTimeChange: (time: string) => void
+  busy: boolean
+  loadError: string
+  menu: Dish[]
   onNavigateToStaff: () => void
-  onTogglePublished: () => void
+  onSaveMenu: (menu: Dish[]) => void
+  orders: Order[]
 }
 
-const orderCounts: Record<MealId, number> = {
-  'herb-chicken': 8,
-  'miso-noodles': 6,
-  'vegetable-focaccia': 4,
-}
-
-function ClockIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="8" cy="8" r="5.5" />
-      <path d="M8 4.5V8l2.5 1.5" />
-    </svg>
-  )
+function slugify(name: string): string {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+  return base || `dish-${Date.now()}`
 }
 
 function AdminScreen({
-  demoTime,
-  isMenuPublished,
-  onDemoTimeChange,
+  busy,
+  loadError,
+  menu,
   onNavigateToStaff,
-  onTogglePublished,
+  onSaveMenu,
+  orders,
 }: AdminScreenProps) {
-  const totalOrders = Object.values(orderCounts).reduce(
-    (total, quantity) => total + quantity,
-    0,
-  )
+  const [dishName, setDishName] = useState('')
+  const [description, setDescription] = useState('')
+  const [price, setPrice] = useState('10')
+
+  const orderCounts = menu.map((dish) => ({
+    dish,
+    count: orders.filter((order) => order.dishId === dish.id).length,
+  }))
+  const totalOrders = orders.length
+
+  function handleAddDish(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const name = dishName.trim()
+    if (!name || busy) return
+
+    const parsedPrice = Number.parseFloat(price)
+    const nextDish: Dish = {
+      id: slugify(name),
+      name,
+      description: description.trim(),
+      price: Number.isFinite(parsedPrice) ? parsedPrice : 0,
+    }
+
+    const uniqueId = menu.some((dish) => dish.id === nextDish.id)
+      ? `${nextDish.id}-${Date.now()}`
+      : nextDish.id
+
+    onSaveMenu([...menu, { ...nextDish, id: uniqueId }])
+    setDishName('')
+    setDescription('')
+    setPrice('10')
+  }
+
+  function handleDeleteDish(dishId: string) {
+    if (busy) return
+    onSaveMenu(menu.filter((dish) => dish.id !== dishId))
+  }
 
   return (
     <main className="admin-screen">
@@ -45,106 +75,145 @@ function AdminScreen({
           </span>
           <span className="admin-brand-name">MealMate</span>
         </div>
-        <span className="admin-profile-initials">MT</span>
+        <span className="admin-profile-initials">AD</span>
       </header>
 
       <nav className="admin-tabs" aria-label="Staff navigation">
         <button className="admin-tab" onClick={onNavigateToStaff} type="button">
           My lunch
         </button>
-        <span
-          aria-current="page"
-          className="admin-tab admin-tab-active"
-        >
+        <span aria-current="page" className="admin-tab admin-tab-active">
           Admin
         </span>
       </nav>
 
       <section className="admin-content">
-        <p className="admin-date">Thursday, October 8</p>
+        <p className="admin-date">Today’s lunch</p>
         <h1>Lunch admin</h1>
         <p className="admin-subtitle">
           Publish today’s menu and track orders.
         </p>
 
-        <label className="demo-clock-card">
-          <span className="demo-clock-icon">
-            <ClockIcon />
-          </span>
-          <span className="demo-clock-copy">
-            <strong>Demo clock</strong>
-            <small>Sets the staff ordering state</small>
-          </span>
-          <input
-            aria-label="Demo clock time"
-            className="cutoff-time-input"
-            onChange={(event) => onDemoTimeChange(event.target.value)}
-            type="time"
-            value={demoTime}
-          />
-        </label>
+        {loadError ? (
+          <p className="admin-error" role="alert">
+            {loadError}
+          </p>
+        ) : null}
 
         <div className="admin-menu-heading">
           <div>
-            <h2>Today’s menu</h2>
-            <p>Staff can order until 10:30</p>
+            <h2>Publish Today’s Menu</h2>
+            <p>Add or delete dishes for everyone</p>
           </div>
           <span
-            className={`publish-status${isMenuPublished ? ' publish-status-live' : ''}`}
+            className={`publish-status${menu.length > 0 ? ' publish-status-live' : ''}`}
           >
-            {isMenuPublished ? 'Published' : 'Draft'}
+            {menu.length > 0 ? 'Published' : 'Empty'}
           </span>
         </div>
 
-        <div className="admin-menu-list">
-          {meals.map((meal, index) => (
-            <article className="admin-menu-item" key={meal.id}>
-              <span className="menu-number">{index + 1}</span>
-              <span className="admin-menu-name">{meal.name}</span>
-              <span className="admin-menu-price">
-                <span aria-hidden="true">$</span>
-                {meal.price.toFixed(2).replace(/\.00$/, '')}
-              </span>
-            </article>
-          ))}
-        </div>
+        <form className="publish-form" onSubmit={handleAddDish}>
+          <label>
+            Dish name
+            <input
+              onChange={(event) => setDishName(event.target.value)}
+              placeholder="e.g. Herb chicken bowl"
+              required
+              type="text"
+              value={dishName}
+            />
+          </label>
+          <label>
+            Description
+            <input
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Short description"
+              type="text"
+              value={description}
+            />
+          </label>
+          <label>
+            Price
+            <input
+              min="0"
+              onChange={(event) => setPrice(event.target.value)}
+              step="0.5"
+              type="number"
+              value={price}
+            />
+          </label>
+          <button disabled={busy || !dishName.trim()} type="submit">
+            {busy ? 'Saving…' : 'Add dish'}
+            <span aria-hidden="true">→</span>
+          </button>
+        </form>
 
-        <button
-          aria-pressed={isMenuPublished}
-          className="publish-button"
-          onClick={onTogglePublished}
-          type="button"
-        >
-          {isMenuPublished ? 'Menu is live' : 'Publish menu'}
-          <span aria-hidden="true">{isMenuPublished ? '✓' : '→'}</span>
-        </button>
+        <div className="admin-menu-list">
+          {menu.length > 0 ? (
+            menu.map((meal, index) => (
+              <article className="admin-menu-item" key={meal.id}>
+                <span className="menu-number">{index + 1}</span>
+                <span className="admin-menu-name">{meal.name}</span>
+                <span className="admin-menu-price">
+                  <span aria-hidden="true">$</span>
+                  {meal.price.toFixed(2).replace(/\.00$/, '')}
+                </span>
+                <button
+                  aria-label={`Delete ${meal.name}`}
+                  className="admin-delete"
+                  disabled={busy}
+                  onClick={() => handleDeleteDish(meal.id)}
+                  type="button"
+                >
+                  Delete
+                </button>
+              </article>
+            ))
+          ) : (
+            <p className="admin-empty">No dishes yet — add one above.</p>
+          )}
+        </div>
 
         <div className="order-summary-heading">
           <div>
-            <h2>Order summary</h2>
-            <p>Live totals for the kitchen</p>
+            <h2>Menu</h2>
+            <p>Total orders for each dish</p>
           </div>
           <strong>{totalOrders}</strong>
         </div>
 
         <div className="admin-order-list">
-          {meals.map((meal) => (
-            <article
-              className="admin-order-item"
-              key={meal.id}
-            >
-              <span className="order-quantity">{orderCounts[meal.id]}</span>
-              <span className="admin-menu-name">{meal.name}</span>
-              <span className="order-chevron" aria-hidden="true">
-                ›
-              </span>
-            </article>
-          ))}
+          {orderCounts.length > 0 ? (
+            orderCounts.map(({ dish, count }) => (
+              <article className="admin-order-item" key={dish.id}>
+                <span className="order-quantity">{count}</span>
+                <span className="admin-menu-name">{dish.name}</span>
+                <span className="admin-menu-price">{formatPrice(dish.price)}</span>
+              </article>
+            ))
+          ) : (
+            <p className="admin-empty">Publish a menu to see dish totals.</p>
+          )}
         </div>
 
-        <div className="kitchen-cutoff">
-          <span>Kitchen cutoff</span>
-          <span>10:30 today</span>
+        <div className="order-summary-heading">
+          <div>
+            <h2>Who ordered what</h2>
+            <p>Live order details for the kitchen</p>
+          </div>
+        </div>
+
+        <div className="admin-order-list">
+          {orders.length > 0 ? (
+            orders.map((order) => (
+              <article className="admin-order-item" key={order.id}>
+                <span className="order-staff">{order.staffName}</span>
+                <span className="admin-menu-name">{order.dishName}</span>
+              </article>
+            ))
+          ) : (
+            <p className="admin-empty">No orders yet.</p>
+          )}
         </div>
       </section>
     </main>
